@@ -1,0 +1,216 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CleanUp Phnom Sampov</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map { height: 400px; }
+        body { scroll-behavior: smooth; }
+    </style>
+</head>
+<body class="bg-green-50 text-gray-800 font-sans">
+    <!-- Navigation -->
+    <nav class="bg-green-600 text-white fixed w-full top-0 z-10 shadow-md">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+            <a href="#home" class="text-xl font-bold">CleanUp Phnom Sampov</a>
+            <div class="space-x-4">
+                <a href="#home" class="hover:underline">Home</a>
+                <a href="#find-bin" class="hover:underline">Find a Bin</a>
+                <a href="#what-you-can-do" class="hover:underline">What You Can Do</a>
+                <a href="#about" class="hover:underline">About</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Home Section -->
+    <section id="home" class="pt-20 pb-10">
+        <div class="max-w-4xl mx-auto px-4 text-center">
+            <img src="https://via.placeholder.com/800x300?text=Phnom+Sampov+Banner" alt="Phnom Sampov Banner" class="w-full h-48 object-cover rounded-lg mb-6">
+            <h1 class="text-3xl font-bold text-green-700 mb-4">Welcome to CleanUp Phnom Sampov</h1>
+            <p class="text-lg mb-4">CleanUp Phnom Sampov is a community-driven initiative in Battambang, Cambodia, dedicated to promoting cleanliness, sustainability, and eco-tourism. Our mission is to keep Phnom Sampov’s natural beauty pristine for locals and tourists alike.</p>
+            <p class="text-lg">Join us in making Phnom Sampov a model of environmental stewardship!</p>
+        </div>
+    </section>
+
+    <!-- Find a Bin Section -->
+    <section id="find-bin" class="py-10 bg-white">
+        <div class="max-w-4xl mx-auto px-4">
+            <h2 class="text-2xl font-bold text-green-700 mb-4 text-center">Find the Nearest Bin</h2>
+            <p class="text-center text-lg mb-6">Find the nearest bin and keep Phnom Sampov clean!</p>
+            <div id="map" class="w-full rounded-lg shadow-md"></div>
+            <p id="status" class="text-center text-gray-600 mt-4">Getting your location...</p>
+            <div id="info" class="text-center text-gray-700 mt-4"></div>
+        </div>
+    </section>
+
+    <!-- What You Can Do Section -->
+    <section id="what-you-can-do" class="py-10 bg-green-50">
+        <div class="max-w-4xl mx-auto px-4">
+            <h2 class="text-2xl font-bold text-green-700 mb-4 text-center">What You Can Do</h2>
+            <p class="text-lg text-center mb-6">Learn how to manage waste and join our clean-up efforts!</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-4 rounded-lg shadow-md text-center">
+                    <img src="https://via.placeholder.com/50?text=Organic" alt="Organic Waste Icon" class="mx-auto mb-2">
+                    <h3 class="font-semibold">Organic Waste</h3>
+                    <p>Compost food scraps and garden waste.</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-md text-center">
+                    <img src="https://via.placeholder.com/50?text=Plastic" alt="Plastic Waste Icon" class="mx-auto mb-2">
+                    <h3 class="font-semibold">Plastic Waste</h3>
+                    <p>Recycle bottles, bags, and containers.</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-md text-center">
+                    <img src="https://via.placeholder.com/50?text=Other" alt="Other Waste Icon" class="mx-auto mb-2">
+                    <h3 class="font-semibold">Other Waste</h3>
+                    <p>Dispose of non-recyclables properly.</p>
+                </div>
+            </div>
+            <div class="text-center">
+                <h3 class="text-xl font-semibold text-green-700 mb-2">Join Our Monthly Clean-Up Events</h3>
+                <p>Every first Saturday of the month at Phnom Sampov. Meet at the main entrance at 8 AM. Bring gloves and enthusiasm!</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- About the Project Section -->
+    <section id="about" class="py-10 bg-white">
+        <div class="max-w-4xl mx-auto px-4">
+            <h2 class="text-2xl font-bold text-green-700 mb-4 text-center">About the Project</h2>
+            <p class="text-lg mb-4">CleanUp Phnom Sampov is led by a passionate team of local environmentalists and students from Battambang. We collaborate with the community, including schools and local businesses, to foster a culture of sustainability.</p>
+            <p class="text-lg mb-4">Our project encourages everyone to participate in keeping Phnom Sampov clean, from waste sorting to clean-up events. Together, we’re building a greener future for Battambang.</p>
+            <div class="text-center">
+                <h3 class="text-xl font-semibold text-green-700 mb-2">Follow Us</h3>
+                <div class="flex justify-center space-x-4">
+                    <a href="https://facebook.com" target="_blank" class="text-blue-600 hover:underline">Facebook</a>
+                    <a href="https://instagram.com" target="_blank" class="text-pink-600 hover:underline">Instagram</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-green-600 text-white py-4">
+        <div class="max-w-4xl mx-auto px-4 text-center">
+            <p>&copy; 2025 CleanUp Phnom Sampov. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([13.0957, 103.2022], 13); // Phnom Sampov coords
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+        // Sample bin locations (replace with real coordinates)
+        const bins = [
+            { lat: 13.0957, lng: 103.2022, name: "Phnom Sampov Entrance Bin" },
+            { lat: 13.0970, lng: 103.2040, name: "Temple Area Bin" },
+            { lat: 13.0940, lng: 103.2005, name: "Market Bin" }
+        ];
+
+        // Get user's location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(showNearestBin, handleError);
+        } else {
+            document.getElementById('status').textContent = "Geolocation is not supported.";
+        }
+
+        function showNearestBin(position) {
+            const userLat = position.coords.latitude;
+            const userLng = position.coords.longitude;
+
+            // Add user marker
+            L.marker([userLat, userLng]).addTo(map)
+                .bindPopup("You are here").openPopup();
+
+            // Center map on user
+            map.setView([userLat, userLng], 15);
+
+            // Find nearest bin
+            let nearestBin = null;
+            let minDistance = Infinity;
+
+            bins.forEach(bin => {
+                const distance = calculateDistance(userLat, userLng, bin.lat, bin.lng);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestBin = bin;
+                }
+            });
+
+            // Add bin markers
+            bins.forEach(bin => {
+                L.marker([bin.lat, bin.lng]).addTo(map)
+                    .bindPopup(bin.name);
+            });
+
+            // Update info
+            if (nearestBin) {
+                document.getElementById('status').textContent = `Nearest bin: ${nearestBin.name}`;
+                document.getElementById('info').innerHTML = `
+                    <p>Distance: ${minDistance.toFixed(2)} km</p>
+                    <a href="https://www.openstreetmap.org/directions?from=${userLat},${userLng}&to=${nearestBin.lat},${nearestBin.lng}" 
+                       target="_blank" class="text-blue-500 underline">Get walking directions</a>
+                `;
+            }
+        }
+
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function handleError(error) {
+            document.getElementById('status').textContent = `Error: ${error.message}`;
+        }
+    </script>
